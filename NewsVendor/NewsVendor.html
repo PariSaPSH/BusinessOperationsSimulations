@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Newsvendor Simulation - Refined</title>
+
+<style>
+    body {
+        background-color: #f8f9fa;
+        font-family: "Segoe UI", Arial, sans-serif;
+        padding: 30px;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding-bottom: 100px;
+    }
+
+    h1 {
+        font-size: 36px;
+        color: #2c3e50;
+        margin-bottom: 5px;
+        text-align: center;
+    }
+
+    /* SETUP AREA STYLES */
+    #setupArea {
+        background-color: #ffffff;
+        padding: 25px;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 25px;
+        border: 1px solid #dee2e6;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+
+    .econ-inputs {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+
+    .econ-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .econ-label {
+        font-size: 14px;
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+
+    .econ-input {
+        width: 90px;
+        padding: 10px;
+        font-size: 18px;
+        border: 2px solid #ced4da;
+        border-radius: 6px;
+        text-align: center;
+        transition: border-color 0.2s;
+    }
+    .econ-input:focus { border-color: #4CAF50; outline: none; }
+
+    .start-btn {
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 12px 50px;
+        font-size: 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        margin-top: 15px;
+        font-weight: bold;
+    }
+    .start-btn:hover { background-color: #45a049; }
+
+    /* GAME AREA STYLES */
+    #gameArea { display: none; }
+
+    .status-bar {
+        text-align: center;
+        font-size: 24px;
+        color: #fff;
+        background-color: #34495e;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        font-weight: bold;
+    }
+
+    .sun-container { text-align: center; margin-bottom: 20px; }
+    .sun {
+        font-size: 70px;
+        cursor: pointer;
+        display: inline-block;
+        transition: transform 0.1s;
+    }
+    .sun:active { transform: scale(0.9); }
+    .sun.disabled { opacity: 0.3; cursor: not-allowed; filter: grayscale(100%); }
+
+    /* Three-column layout reorganization */
+    .columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 15px;
+        margin-top: 10px;
+    }
+
+    .column-card {
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        border: 1px solid #eee;
+        background-color: white;
+    }
+
+    /* Column 1: Decision */
+    .col-decision { border-top: 6px solid #7a82b7; }
+    /* Column 2: Market Success */
+    .col-success { border-top: 6px solid #4CAF50; background-color: #f0fff0; }
+    /* Column 3: Mismatch/Error */
+    .col-error { border-top: 6px solid #e74c3c; background-color: #fff5f5; }
+
+    .icon { font-size: 45px; margin-bottom: 10px; }
+    .label {
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+        margin-top: 15px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .box {
+        width: 90%;
+        height: 45px;
+        background-color: #ecf0f1;
+        border-radius: 8px;
+        margin: 0 auto;
+        font-size: 22px;
+        line-height: 45px;
+        text-align: center;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+
+    .inputbox {
+        width: 90%;
+        height: 45px;
+        background-color: #7a82b7;
+        border-radius: 8px;
+        border: none;
+        color: white;
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+    }
+    .inputbox::placeholder { color: #cbd0f0; }
+
+    .profitbox {
+        width: 90%;
+        height: 45px;
+        background-color: #f1c40f;
+        border-radius: 8px;
+        margin: 0 auto;
+        font-size: 22px;
+        line-height: 45px;
+        text-align: center;
+        font-weight: 900;
+        color: #2c3e50;
+    }
+
+    /* Bottom Section */
+    .bottom-section {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        margin-top: 35px;
+        gap: 30px;
+    }
+
+    .economics-panel {
+        background: #fffdf2;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid #f0e0c0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        min-width: 300px;
+    }
+
+    .eco-row {
+        font-size: 18px;
+        margin-bottom: 10px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .cr-box {
+        margin-top: 15px;
+        padding: 10px;
+        border: 2px dashed #d32f2f;
+        background-color: #fff;
+        font-weight: bold;
+        color: #d32f2f;
+        text-align: center;
+        font-size: 22px;
+        border-radius: 8px;
+    }
+
+    .demand-chart {
+        width: 300px;
+        height: auto;
+        border-radius: 12px;
+        border: 1px solid #ddd;
+        background: white;
+    }
+
+    /* History Table */
+    #historySection { margin-top: 40px; display: none; }
+    table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; }
+    th, td { border: 1px solid #eee; padding: 15px; text-align: center; font-size: 18px; }
+    th { background-color: #34495e; color: white; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+
+    /* Analyzer */
+    #analyzerSection {
+        margin-top: 50px;
+        padding: 25px;
+        background-color: #e3f2fd;
+        border: 2px solid #2196F3;
+        border-radius: 12px;
+        text-align: center;
+        display: none;
+    }
+    .analyze-btn {
+        background-color: #2196F3; color: white; border: none; padding: 12px 25px;
+        font-size: 18px; border-radius: 6px; cursor: pointer; font-weight: bold;
+    }
+</style>
+</head>
+
+<body>
+
+<h1>Newsvendor Simulation</h1>
+
+<div id="setupArea">
+    <div class="econ-inputs">
+        <div class="econ-group">
+            <span class="econ-label">Price (p)</span>
+            <input type="number" id="inputP" class="econ-input" value="2.50" step="0.1">
+        </div>
+        <div class="econ-group">
+            <span class="econ-label">Cost (c)</span>
+            <input type="number" id="inputC" class="econ-input" value="2.00" step="0.1">
+        </div>
+        <div class="econ-group">
+            <span class="econ-label">Salvage (s)</span>
+            <input type="number" id="inputS" class="econ-input" value="1.00" step="0.1">
+        </div>
+        <div class="econ-group">
+            <span class="econ-label">Rounds</span>
+            <input type="number" id="totalDaysInput" class="econ-input" value="5">
+        </div>
+    </div>
+    <button class="start-btn" onclick="startGame()">Set Variables & Start Game</button>
+</div>
+
+<div id="gameArea">
+    <div class="status-bar">
+        Day: <span id="dayDisplay">1</span> / <span id="totalDaysDisplay">5</span> 
+        &nbsp;|&nbsp; 
+        Total Profit: $<span id="cumProfitDisplay">0.00</span>
+    </div>
+
+    <div class="sun-container">
+        <div id="playBtn" class="sun" onclick="playRound()">☀️</div>
+        <div style="font-size: 14px; color: #666; font-weight: bold;">CLICK SUN TO SIMULATE DAY</div>
+    </div>
+
+    <div class="columns">
+        <div class="column-card col-decision">
+            <div class="icon">📰</div>
+            <div class="label">Order Quantity (Q)</div>
+            <input id="Q" type="number" class="inputbox" placeholder="Qty?">
+            
+            <div class="label" style="margin-top: 30px;">Daily Profit</div>
+            <div id="profitBox" class="profitbox">-</div>
+        </div>
+
+        <div class="column-card col-success">
+            <div class="icon">🔮 🧑‍💼</div> <!-- 👤-->
+            <div class="label">Realized Demand</div>
+            <div id="demandBox" class="box">-</div>
+
+            <div class="label">Actual Sales 📰🧑‍💼</div>
+            <div id="salesBox" class="box">-</div>
+        </div>
+
+        <div class="column-card col-error">
+            <div class="icon">⚖️ 📰 🗑️</div> <!--📰 ⚖️-->
+            <div class="label">Leftover (Waste)</div>
+            <div id="leftoverBox" class="box">-</div>
+
+            <div class="label">Lost Sales</div>
+            <div id="lostBox" class="box">-</div>
+        </div>
+    </div>
+
+    <div class="bottom-section">
+        <div class="economics-panel">
+            <div style="text-align:center; font-weight:bold; margin-bottom:15px; font-size: 20px; color:#2c3e50;">Economic Summary</div>
+            <div class="eco-row">
+                <span>Underage Cost (Cu):</span>
+				<span>
+                    <span class="blue-face">☹</span>
+                </span>                <span style="color:#d32f2f; font-weight:bold;">$ <span id="dispCu">0.00</span></span>
+            </div>
+            <div class="eco-row">
+                <span>Overage Cost (Co):</span>
+				<span>
+                    <span class="purple-trash">🗑</span>
+                </span>
+                <span style="color:#9c27b0; font-weight:bold;">$ <span id="dispCo">0.00</span></span>
+            </div>
+            <div class="cr-box">
+                CR = <span id="dispCR">0.00</span>
+            </div>
+             <div style="font-size: 13px; color: #777; text-align: center; margin-top:5px;">Optimal Service Level Target</div>
+        </div>
+        <img src="Demand.png" alt="Demand Graph" class="demand-chart">
+    </div>
+</div>
+
+<div id="historySection">
+    <h2>Simulation History</h2>
+    <table id="historyTable">
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th>Order (Q)</th>
+                <th>Demand</th>
+                <th>Daily Profit</th>
+                <th>Cum. Profit</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<div id="analyzerSection">
+    <h2>⚡ Long-Run Expected Profit</h2>
+    <p>Test any Q to see its theoretical performance over time.</p>
+    <div style="margin-bottom: 15px;">
+        <input id="analyzeQ" type="number" class="inputbox" style="width: 120px; color: black; background-color: white; border: 2px solid #2196F3;" placeholder="Test Q">
+        <button class="analyze-btn" onclick="calculateExpectedValue()">Calculate EV</button>
+    </div>
+    <div id="analysisResult" style="font-size: 22px; color: #0d47a1; font-weight: bold;"></div>
+</div>
+
+<script>
+    let currentDay = 1, totalDays = 5, cumulativeProfit = 0, isGameActive = false;
+    let price = 2.5, cost = 2.0, salvage = 1.0;
+
+    function drawDemand() {
+        let r = Math.random();
+        if (r < 0.2) return 400;
+        if (r < 0.5) return 450;
+        if (r < 0.8) return 500;
+        return 650;
+    }
+
+    function startGame() {
+        price = parseFloat(document.getElementById("inputP").value);
+        cost = parseFloat(document.getElementById("inputC").value);
+        salvage = parseFloat(document.getElementById("inputS").value);
+        totalDays = parseInt(document.getElementById("totalDaysInput").value);
+
+        let Cu = price - cost, Co = cost - salvage, CR = (Cu + Co) > 0 ? Cu / (Cu + Co) : 0;
+
+        document.getElementById("dispCu").innerText = Cu.toFixed(2);
+        document.getElementById("dispCo").innerText = Co.toFixed(2);
+        document.getElementById("dispCR").innerText = CR.toFixed(4);
+
+        currentDay = 1; cumulativeProfit = 0; isGameActive = true;
+        document.getElementById("setupArea").style.display = "none";
+        document.getElementById("gameArea").style.display = "block";
+        document.getElementById("historySection").style.display = "block";
+        document.getElementById("analyzerSection").style.display = "block";
+        document.getElementById("totalDaysDisplay").innerText = totalDays;
+        document.querySelector("#historyTable tbody").innerHTML = "";
+        updateDisplays(1, 0, "-", "-", "-", "-", "-");
+        document.getElementById("playBtn").classList.remove("disabled");
+    }
+
+    function playRound() {
+        if (!isGameActive) return;
+        let Q = parseInt(document.getElementById("Q").value);
+        if (isNaN(Q) || Q < 0) { alert("Enter a valid Q."); return; }
+        
+        document.getElementById("analyzeQ").value = Q;
+        let demand = drawDemand(), sales = Math.min(Q, demand), leftover = Math.max(Q - demand, 0), lost = Math.max(demand - Q, 0);
+        let dailyProfit = (price * sales) - (cost * Q) + (salvage * leftover);
+        cumulativeProfit += dailyProfit;
+
+        updateDisplays(currentDay, cumulativeProfit, demand, sales, lost, leftover, dailyProfit.toFixed(2));
+        addToTable(currentDay, Q, demand, dailyProfit, cumulativeProfit);
+
+        if (currentDay >= totalDays) endGame();
+        else { currentDay++; document.getElementById("dayDisplay").innerText = currentDay; }
+    }
+
+    function addToTable(d, q, dem, dp, cp) {
+        let row = document.querySelector("#historyTable tbody").insertRow();
+        row.innerHTML = `<td>${d}</td><td>${q}</td><td>${dem}</td><td>$${dp.toFixed(2)}</td><td><strong>$${cp.toFixed(2)}</strong></td>`;
+    }
+
+    function updateDisplays(day, cp, dem, sal, los, lef, dp) {
+        document.getElementById("dayDisplay").innerText = day;
+        document.getElementById("cumProfitDisplay").innerText = cp.toFixed(2);
+        document.getElementById("demandBox").innerText = dem;
+        document.getElementById("salesBox").innerText = sal;
+        document.getElementById("lostBox").innerText = los;
+        document.getElementById("leftoverBox").innerText = lef;
+        document.getElementById("profitBox").innerText = dp;
+    }
+
+    function endGame() {
+        isGameActive = false;
+        document.getElementById("playBtn").classList.add("disabled");
+        alert("Sim Finished! Total Profit: $" + cumulativeProfit.toFixed(2));
+    }
+
+    function calculateExpectedValue() {
+        let Q = parseInt(document.getElementById("analyzeQ").value);
+        const scenarios = [{d: 400, p: 0.2}, {d: 450, p: 0.3}, {d: 500, p: 0.3}, {d: 650, p: 0.2}];
+        let ev = scenarios.reduce((acc, s) => {
+            let sales = Math.min(Q, s.d), left = Math.max(Q - s.d, 0);
+            return acc + (s.p * ((price * sales) - (cost * Q) + (salvage * left)));
+        }, 0);
+        document.getElementById("analysisResult").innerHTML = `Q = ${Q} → Expected Daily Profit: $${ev.toFixed(2)}`;
+    }
+</script>
+</body>
+</html>
