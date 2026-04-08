@@ -365,26 +365,43 @@
 
     function resetSim() { if(state.sim.active) toggleSim(); state.sim.day = 0; state.sim.accruedCost = 0; state.sim.accruedPenalty = 0; state.acts.forEach(a => { a.status = 'idle'; a.progress = 0; }); calculateCPM(); renderSVG(); updateHUD(); }
 
-    function step() {
-        state.sim.day++;
+	function step() {
+        // Check if all tasks were already done from the previous step
+        let allDone = state.acts.every(a => a.status === 'done');
+        
+        if(allDone) { 
+            clearInterval(state.sim.timer); 
+            toggleSim(); 
+            alert("Project Finalized."); 
+            return; // Exit before incrementing the day
+        }
+
+        state.sim.day++; // Only increment if we have work to do
         const dl = parseInt(document.getElementById('in-deadline').value) || 0, pr = parseInt(document.getElementById('in-penalty').value) || 0;
         if(state.sim.day > dl) state.sim.accruedPenalty += pr;
-        let allDone = true;
+        
         state.acts.forEach(a => {
             if(a.status === 'done') return;
-            allDone = false;
             if(a.preds.every(p => state.acts.find(x => x.id === p).status === 'done') && state.sim.day > a.es) {
                 a.status = 'active';
                 state.sim.accruedCost += (a.normCost + a.crashUnits * a.crashRate) / a.duration;
                 a.progress += (100 / a.duration);
                 if(a.progress >= 99.9) { a.progress = 100; a.status = 'done'; }
             } else if (state.sim.day > a.es) a.status = 'blocked';
+            
             const r = document.getElementById(`node-${a.id}`), p = document.getElementById(`prog-${a.id}`);
             if(r) r.setAttribute("class", `node-rect ${a.isCritical?'critical':''} ${a.status}`);
             if(p) p.setAttribute("width", (a.progress / 100) * 130);
         });
+        
         updateHUD();
-        if(allDone) { clearInterval(state.sim.timer); toggleSim(); alert("Project Finalized."); }
+
+        // Check again if the work we just did finished the project to stop the timer immediately
+        if(state.acts.every(a => a.status === 'done')) {
+            clearInterval(state.sim.timer);
+            toggleSim();
+            alert("Project Finalized.");
+        }
     }
 
     function updateHUD() {
