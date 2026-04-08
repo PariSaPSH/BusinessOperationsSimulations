@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProPath 7.0: Interactive Architect</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --panel: #ffffff;
+            --primary: #3b82f6; 
+            --critical: #ef4444; 
+            --active: #22c55e;
+            --blocked: #f59e0b;
+            --done: #64748b;
+            --text: #1e293b;
+            --border: #e2e8f0;
+            --config-width: 520px; 
+        }
+
+        * { box-sizing: border-box; font-family: 'Inter', -apple-system, sans-serif; }
+        body { background-color: #f1f5f9; color: var(--text); margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        /* HUD */
+        .cockpit {
+            background: #1e293b;
+            color: white;
+            padding: 10px 25px;
+            display: grid;
+            grid-template-columns: 180px 1fr auto;
+            align-items: center;
+            border-bottom: 4px solid var(--primary);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+
+        .hud { display: flex; gap: 15px; justify-content: center; }
+        .hud-item { text-align: center; border-right: 1px solid #334155; padding-right: 15px; min-width: 90px; }
+        .hud-item:last-child { border-right: none; }
+        .hud-val { font-size: 1.1rem; font-weight: 800; color: #60a5fa; display: block; }
+        .hud-label { font-size: 0.55rem; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; }
+
+        /* Workspace */
+        main { display: grid; grid-template-columns: var(--config-width) 1fr; flex: 1; overflow: hidden; transition: grid-template-columns 0.1s ease; }
+        .panel { display: flex; flex-direction: column; border-right: 1px solid var(--border); background: white; overflow: hidden; }
+        .panel-content { padding: 12px; overflow-y: auto; flex: 1; }
+
+        /* Config */
+        .config-box { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; background: #f1f5f9; padding: 10px; border-radius: 8px; border: 1px solid var(--border); }
+        .config-box label { display: block; font-size: 0.6rem; font-weight: 800; color: #64748b; margin-bottom: 2px; }
+        .config-box input { width: 100%; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.7rem; }
+        th { text-align: left; background: #f8fafc; padding: 6px; border-bottom: 2px solid var(--border); }
+        td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+        .table-in { border: 1px solid #e2e8f0; width: 100%; padding: 3px; border-radius: 4px; }
+
+        /* Matrix */
+        .matrix-enclosure { display: inline-block; background: #0f172a; padding: 12px; border-radius: 8px; margin-top: 10px; border: 1px solid #1e293b; }
+        .matrix-table { border: none; color: white; font-family: monospace; font-size: 0.65rem; }
+        .matrix-table td { border: 1px solid #1e293b; padding: 3px 7px; text-align: center; }
+        .matrix-val { color: #facc15; font-weight: bold; }
+
+        /* SVG & Interaction */
+        #network-container { background: #fafafa; position: relative; overflow: auto; flex: 1; cursor: grab; }
+        #network-container:active { cursor: grabbing; }
+        #network-svg { min-width: 2500px; min-height: 1500px; user-select: none; }
+
+        .node-group { cursor: grab; }
+        .node-group:active { cursor: grabbing; }
+        .node-rect { fill: white; stroke: #94a3b8; stroke-width: 2; transition: stroke-width 0.1s; }
+        .node-rect.critical { stroke: var(--critical); stroke-width: 4; }
+        .node-rect.active { fill: #f0fdf4; stroke: var(--active); }
+        .node-rect.blocked { fill: #fffbeb; stroke: var(--blocked); }
+        .node-rect.done { fill: #f1f5f9; stroke: #cbd5e1; }
+
+        .edge-path { fill: none; stroke-width: 2.5; transition: stroke 0.3s; }
+        .edge-path.non-cpm { stroke: var(--primary); opacity: 0.6; }
+        .edge-path.cpm { stroke: var(--critical); stroke-width: 4; stroke-dasharray: 6; animation: flow 20s linear infinite; }
+        @keyframes flow { to { stroke-dashoffset: -200; } }
+
+        .timing-circle { r: 9; fill: white; stroke: #cbd5e1; }
+        .timing-text { font-size: 9px; font-weight: 800; text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+        .t-es { fill: #2563eb; } .t-ef { fill: #059669; }
+        .t-ls { fill: #7c3aed; } .t-lf { fill: #dc2626; }
+
+        .btn { padding: 6px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 0.7rem; text-transform: uppercase; }
+        .btn-gen { background: #1e293b; color: white; width: 100%; margin: 10px 0; border: 1px solid #334155; }
+        .btn-run { background: var(--active); color: white; }
+        .crash-btn { background: #fef3c7; border: 1px solid #f59e0b; color: #92400e; padding: 2px 5px; border-radius: 4px; font-weight: bold; }
+
+        #setup-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); display: flex; align-items: center; justify-content: center; z-index: 5000; }
+        .modal { background: white; padding: 35px; border-radius: 12px; width: 420px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div id="setup-overlay">
+    <div class="modal">
+        <h1 style="margin:0; font-weight:900">PRO<span style="color:var(--primary)">PATH</span> 7.0</h1>
+        <p style="color:#64748b">Interactive AON Drag-and-Drop Simulator</p>
+        <div style="margin: 25px 0;">
+            <label style="display:block; font-weight:bold; margin-bottom:8px;">Activities</label>
+            <input type="number" id="setup-n" value="9" min="1" max="26" style="font-size: 1.8rem; width: 90px; text-align: center; border: 2px solid var(--primary); border-radius: 8px;">
+        </div>
+        <button class="btn btn-run" style="width:100%; padding:15px;" onclick="initProject()">Create Workspace</button>
+        <button class="btn" style="background:#64748b; color:white; width:100%; margin-top:10px;" onclick="loadDemo()">Load Pro Demo</button>
+    </div>
+</div>
+
+<header class="cockpit">
+    <div style="font-weight: 900; font-size: 1.2rem;">PRO<span style="color:var(--primary)">PATH</span></div>
+    <div class="hud">
+        <div class="hud-item"><span class="hud-label">Day</span><span class="hud-val" id="hud-day">0</span></div>
+        <div class="hud-item"><span class="hud-label">Committed</span><span class="hud-val" id="hud-spent">$0</span></div>
+        <div class="hud-item"><span class="hud-label">Accrued Cost</span><span class="hud-val" style="color:#fbbf24" id="hud-accrued">$0</span></div>
+        <div class="hud-item"><span class="hud-label">Penalty</span><span class="hud-val" style="color:#f87171" id="hud-penalty">$0</span></div>
+        <div class="hud-item"><span class="hud-label">Runway</span><span class="hud-val" id="hud-runway" style="color:var(--active)">$0</span></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <input type="range" id="width-slider" min="450" max="850" value="520" style="width:70px">
+        <div style="display:flex; gap:5px;">
+            <button class="btn btn-run" id="btn-play" onclick="toggleSim()">Start</button>
+            <button class="btn" style="background:#3b82f6; color:white" onclick="resetSim()">Restart</button>
+            <button class="btn" style="background:#64748b; color:white;" onclick="location.reload()">Hard Reset</button>
+        </div>
+    </div>
+</header>
+
+<main>
+    <section class="panel">
+        <div class="panel-header">PROJECT CONFIGURATION</div>
+        <div class="panel-content">
+            <div class="config-box">
+                <div><label>Budget</label><input type="number" id="in-budget" value="45000"></div>
+                <div><label>Deadline</label><input type="number" id="in-deadline" value="25"></div>
+                <div><label>Penalty</label><input type="number" id="in-penalty" value="1200"></div>
+            </div>
+            <table id="act-table">
+                <thead><tr><th>ID</th><th>Dur</th><th>Pred</th><th>Min</th><th>Norm$</th><th>Cr$</th><th>Act</th></tr></thead>
+                <tbody id="act-body"></tbody>
+            </table>
+            <button class="btn btn-gen" onclick="generateNetwork()">Generate & Auto-Layout</button>
+            <div class="matrix-enclosure"><div id="matrix-root"></div></div>
+        </div>
+    </section>
+
+    <section id="network-container">
+        <svg id="network-svg" onmousemove="onDrag(event)" onmouseup="endDrag()" onmouseleave="endDrag()">
+            <defs>
+                <marker id="arr-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--primary)" /></marker>
+                <marker id="arr-crit" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="var(--critical)" /></marker>
+            </defs>
+            <g id="edges-layer"></g>
+            <g id="nodes-layer"></g>
+        </svg>
+    </section>
+</main>
+
+<script>
+    let state = { 
+        acts: [], 
+        sim: { active: false, day: 0, timer: null, accruedCost: 0, accruedPenalty: 0, committedCost: 0 },
+        drag: { target: null, offsetX: 0, offsetY: 0 }
+    };
+
+    document.getElementById('width-slider').oninput = (e) => document.documentElement.style.setProperty('--config-width', e.target.value + 'px');
+
+    function getID(n) { return String.fromCharCode(65 + (n - 1)); }
+
+    function initProject() {
+        const n = document.getElementById('setup-n').value;
+        const body = document.getElementById('act-body');
+        body.innerHTML = ''; state.acts = [];
+        for(let i=1; i<=n; i++) addRow(getID(i), 5, "", 2, 1200, 300);
+        document.getElementById('setup-overlay').style.display = 'none';
+        generateNetwork();
+    }
+
+    function addRow(id, d, p, m, n, c) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><strong>${id}</strong></td>
+            <td><input type="number" class="table-in in-dur" data-id="${id}" value="${d}"></td>
+            <td><input type="text" class="table-in in-pred" data-id="${id}" value="${p}"></td>
+            <td><input type="number" class="table-in in-min" data-id="${id}" value="${m}"></td>
+            <td><input type="number" class="table-in in-norm" data-id="${id}" value="${n}"></td>
+            <td><input type="number" class="table-in in-crash" data-id="${id}" value="${c}"></td>
+            <td><button class="crash-btn" id="cb-${id}" onclick="crashAction('${id}')">⚡<span id="cr-${id}">0</span></button></td>`;
+        document.getElementById('act-body').appendChild(tr);
+        state.acts.push({ id, status: 'idle', progress: 0, crashUnits: 0, x: 0, y: 0 });
+    }
+
+    function loadDemo() {
+        document.getElementById('act-body').innerHTML = ''; state.acts = [];
+        const d = [
+            {i:'A', d:5, p:'', m:2, n:1500, c:500}, {i:'B', d:8, p:'A', m:3, n:1200, c:300}, {i:'C', d:4, p:'A', m:2, n:2000, c:600},
+            {i:'D', d:6, p:'B', m:3, n:1000, c:400}, {i:'E', d:10, p:'C', m:5, n:2500, c:200}, {i:'F', d:5, p:'B,C', m:3, n:1100, c:300},
+            {i:'G', d:4, p:'D,F', m:2, n:900, c:800}, {i:'H', d:3, p:'E,G', m:1, n:1400, c:500}, {i:'I', d:3, p:'H', m:1, n:1000, c:400}
+        ];
+        d.forEach(x => addRow(x.i, x.d, x.p, x.m, x.n, x.c));
+        document.getElementById('setup-overlay').style.display = 'none';
+        generateNetwork();
+    }
+
+    function generateNetwork() {
+        sync(); calculateCPM(); optimizeLayout(); renderMatrix(); renderSVG(); updateHUD();
+    }
+
+    function sync() {
+        let total = 0;
+        state.acts.forEach(a => {
+            const row = document.querySelector(`.in-dur[data-id="${a.id}"]`).closest('tr');
+            a.duration = parseInt(row.querySelector('.in-dur').value) || 1;
+            a.minDur = parseInt(row.querySelector('.in-min').value) || 1;
+            a.normCost = parseInt(row.querySelector('.in-norm').value) || 0;
+            a.crashRate = parseInt(row.querySelector('.in-crash').value) || 0;
+            a.preds = row.querySelector('.in-pred').value.split(',').map(s => s.trim()).filter(s => s && s !== a.id);
+            total += a.normCost + (a.crashUnits * a.crashRate);
+            document.getElementById(`cr-${a.id}`).innerText = a.duration - a.minDur;
+            document.getElementById(`cb-${a.id}`).disabled = (a.duration <= a.minDur);
+        });
+        state.sim.committedCost = total;
+    }
+
+    function calculateCPM() {
+        let visited = new Set(), order = [];
+        const visit = (id) => { if (visited.has(id)) return; const a = state.acts.find(x => x.id === id); if(!a) return; a.preds.forEach(p => visit(p)); visited.add(id); order.push(id); };
+        state.acts.forEach(a => visit(a.id));
+        state.acts.forEach(a => {
+            a.es = a.preds.length === 0 ? 0 : Math.max(...a.preds.map(p => state.acts.find(x => x.id === p).ef));
+            a.ef = a.es + a.duration;
+        });
+        const projEnd = Math.max(...state.acts.map(a => a.ef), 0);
+        order.reverse().forEach(id => {
+            const a = state.acts.find(x => x.id === id);
+            const succs = state.acts.filter(x => x.preds.includes(id));
+            a.lf = succs.length === 0 ? projEnd : Math.min(...succs.map(s => s.ls));
+            a.ls = a.lf - a.duration;
+            a.slack = a.ls - a.es; a.isCritical = a.slack <= 0;
+        });
+    }
+
+    function optimizeLayout() {
+        const lvls = {};
+        state.acts.forEach(a => { lvls[a.id] = a.preds.length === 0 ? 0 : Math.max(...a.preds.map(p => lvls[p])) + 1; });
+        const groups = {};
+        state.acts.forEach(a => { if(!groups[lvls[a.id]]) groups[lvls[a.id]] = []; groups[lvls[a.id]].push(a); });
+        const COL_W = 300, MIN_Y_GAP = 140;
+        Object.keys(groups).sort().forEach(l => {
+            groups[l].forEach((a, i) => { a.x = 100 + l * COL_W; a.y = 400 + (i * MIN_Y_GAP); });
+        });
+        for(let iter=0; iter<5; iter++) {
+            Object.keys(groups).sort().forEach(l => {
+                groups[l].forEach(a => {
+                    if (a.preds.length > 0) {
+                        const sumY = a.preds.reduce((acc, pId) => acc + state.acts.find(x => x.id === pId).y, 0);
+                        a.y = sumY / a.preds.length;
+                    }
+                });
+                groups[l].sort((a,b) => a.y - b.y).forEach((a, i, arr) => {
+                    if (i > 0 && a.y < arr[i-1].y + MIN_Y_GAP) a.y = arr[i-1].y + MIN_Y_GAP;
+                });
+            });
+        }
+    }
+
+    function renderMatrix() {
+        const root = document.getElementById('matrix-root');
+        let h = `<table class="matrix-table"><tr><th></th>`;
+        state.acts.forEach(a => h += `<th style="color:#60a5fa">${a.id}</th>`);
+        h += `</tr>`;
+        state.acts.forEach(row => {
+            h += `<tr><td><strong>${row.id}</strong></td>`;
+            state.acts.forEach(col => {
+                const isEdge = col.preds.includes(row.id);
+                h += `<td class="${isEdge?'matrix-val':''}">${isEdge ? row.duration : '0'}</td>`;
+            });
+            h += `</tr>`;
+        });
+        h += `</table>`;
+        root.innerHTML = h;
+    }
+
+    function renderSVG() {
+        const eL = document.getElementById('edges-layer'), nL = document.getElementById('nodes-layer');
+        eL.innerHTML = ''; nL.innerHTML = '';
+        state.acts.forEach(a => {
+            a.preds.forEach(pId => {
+                const p = state.acts.find(x => x.id === pId);
+                const path = document.createElementNS("http://www.w3.org/2000/svg", "line");
+                path.setAttribute("x1", p.x + 130); path.setAttribute("y1", p.y + 40);
+                path.setAttribute("x2", a.x); path.setAttribute("y2", a.y + 40);
+                path.setAttribute("id", `edge-${p.id}-${a.id}`);
+                const crit = (a.isCritical && p.isCritical);
+                path.setAttribute("class", `edge-path ${crit ? 'cpm' : 'non-cpm'}`);
+                path.setAttribute("marker-end", crit ? "url(#arr-crit)" : "url(#arr-blue)");
+                eL.appendChild(path);
+            });
+        });
+        state.acts.forEach(a => {
+            const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            g.setAttribute("class", "node-group");
+            g.setAttribute("id", `group-${a.id}`);
+            g.setAttribute("transform", `translate(${a.x}, ${a.y})`);
+            g.onmousedown = (e) => startDrag(e, a);
+            g.innerHTML = `<rect width="130" height="80" rx="10" class="node-rect ${a.isCritical?'critical':''} ${a.status}" id="node-${a.id}"></rect>
+                <rect y="75" width="${(a.progress/100)*130}" height="5" fill="var(--active)" id="prog-${a.id}"></rect>
+                <text x="65" y="45" text-anchor="middle" font-weight="900" style="font-size:14px">${a.id} (${a.duration})</text>
+                <circle cx="0" cy="0" class="timing-circle"></circle><text x="0" y="0" class="timing-text t-es">${a.es}</text>
+                <circle cx="130" cy="0" class="timing-circle"></circle><text x="130" y="0" class="timing-text t-ef">${a.ef}</text>
+                <circle cx="0" cy="80" class="timing-circle"></circle><text x="0" y="80" class="timing-text t-ls">${a.ls}</text>
+                <circle cx="130" cy="80" class="timing-circle"></circle><text x="130" y="80" class="timing-text t-lf">${a.lf}</text>`;
+            nL.appendChild(g);
+        });
+    }
+
+    // --- Drag and Drop Logic ---
+    function startDrag(e, act) {
+        state.drag.target = act;
+        const svg = document.getElementById('network-svg');
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX; pt.y = e.clientY;
+        const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+        state.drag.offsetX = svgPt.x - act.x;
+        state.drag.offsetY = svgPt.y - act.y;
+    }
+
+    function onDrag(e) {
+        if (!state.drag.target) return;
+        const act = state.drag.target;
+        const svg = document.getElementById('network-svg');
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX; pt.y = e.clientY;
+        const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+        
+        act.x = svgPt.x - state.drag.offsetX;
+        act.y = svgPt.y - state.drag.offsetY;
+
+        // Update Node visual
+        document.getElementById(`group-${act.id}`).setAttribute("transform", `translate(${act.x}, ${act.y})`);
+
+        // Update all connected edges
+        state.acts.forEach(other => {
+            if (other.preds.includes(act.id)) { // act is predecessor
+                const edge = document.getElementById(`edge-${act.id}-${other.id}`);
+                edge.setAttribute("x1", act.x + 130);
+                edge.setAttribute("y1", act.y + 40);
+            }
+            if (act.preds.includes(other.id)) { // act is successor
+                const edge = document.getElementById(`edge-${other.id}-${act.id}`);
+                edge.setAttribute("x2", act.x);
+                edge.setAttribute("y2", act.y + 40);
+            }
+        });
+    }
+
+    function endDrag() { state.drag.target = null; }
+
+    function toggleSim() {
+        state.sim.active = !state.sim.active;
+        const btn = document.getElementById('btn-play');
+        if(state.sim.active) { btn.innerText = "Pause"; btn.style.background = "var(--critical)"; state.sim.timer = setInterval(step, 800); }
+        else { btn.innerText = "Start"; btn.style.background = "var(--active)"; clearInterval(state.sim.timer); }
+    }
+
+    function resetSim() { if(state.sim.active) toggleSim(); state.sim.day = 0; state.sim.accruedCost = 0; state.sim.accruedPenalty = 0; state.acts.forEach(a => { a.status = 'idle'; a.progress = 0; }); calculateCPM(); renderSVG(); updateHUD(); }
+
+    function step() {
+        state.sim.day++;
+        const dl = parseInt(document.getElementById('in-deadline').value) || 0, pr = parseInt(document.getElementById('in-penalty').value) || 0;
+        if(state.sim.day > dl) state.sim.accruedPenalty += pr;
+        let allDone = true;
+        state.acts.forEach(a => {
+            if(a.status === 'done') return;
+            allDone = false;
+            if(a.preds.every(p => state.acts.find(x => x.id === p).status === 'done') && state.sim.day > a.es) {
+                a.status = 'active';
+                state.sim.accruedCost += (a.normCost + a.crashUnits * a.crashRate) / a.duration;
+                a.progress += (100 / a.duration);
+                if(a.progress >= 99.9) { a.progress = 100; a.status = 'done'; }
+            } else if (state.sim.day > a.es) a.status = 'blocked';
+            const r = document.getElementById(`node-${a.id}`), p = document.getElementById(`prog-${a.id}`);
+            if(r) r.setAttribute("class", `node-rect ${a.isCritical?'critical':''} ${a.status}`);
+            if(p) p.setAttribute("width", (a.progress / 100) * 130);
+        });
+        updateHUD();
+        if(allDone) { clearInterval(state.sim.timer); toggleSim(); alert("Project Finalized."); }
+    }
+
+    function updateHUD() {
+        const runway = (parseInt(document.getElementById('in-budget').value) || 0) - (state.sim.accruedCost + state.sim.accruedPenalty);
+        document.getElementById('hud-day').innerText = state.sim.day;
+        document.getElementById('hud-spent').innerText = "$" + Math.floor(state.sim.committedCost).toLocaleString();
+        document.getElementById('hud-accrued').innerText = "$" + Math.floor(state.sim.accruedCost).toLocaleString();
+        document.getElementById('hud-penalty').innerText = "$" + state.sim.accruedPenalty.toLocaleString();
+        const rEl = document.getElementById('hud-runway');
+        rEl.innerText = "$" + Math.floor(runway).toLocaleString();
+        rEl.style.color = runway < 0 ? 'var(--critical)' : '#22c55e';
+    }
+
+    function crashAction(id) {
+        const a = state.acts.find(x => x.id === id);
+        if(a.duration > a.minDur) { a.crashUnits++; document.querySelector(`.in-dur[data-id="${id}"]`).value = a.duration - 1; 
+        sync(); calculateCPM(); renderSVG(); updateHUD(); }
+    }
+</script>
+</body>
+</html>
