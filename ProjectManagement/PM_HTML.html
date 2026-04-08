@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProPath 7.0: Interactive Architect</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="setup-overlay">
+    <div class="modal">
+        <h1 style="margin:0; font-weight:900">PRO<span style="color:var(--primary)">PATH</span> 7.0</h1>
+        <p style="color:#64748b">Interactive AON Drag-and-Drop Simulator</p>
+        <div style="margin: 25px 0;">
+            <label style="display:block; font-weight:bold; margin-bottom:8px;">Activities</label>
+            <input type="number" id="setup-n" value="9" min="1" max="26" style="font-size: 1.8rem; width: 90px; text-align: center; border: 2px solid var(--primary); border-radius: 8px;">
+        </div>
+        <button class="btn btn-run" style="width:100%; padding:15px;" onclick="initProject()">Create Workspace</button>
+        <button class="btn" style="background:#64748b; color:white; width:100%; margin-top:10px;" onclick="loadDemo()">Load Pro Demo</button>
+    </div>
+</div>
+
+<header class="cockpit">
+    <div style="font-weight: 900; font-size: 1.2rem;">PRO<span style="color:var(--primary)">PATH</span></div>
+    <div class="hud">
+        <div class="hud-item"><span class="hud-label">Day</span><span class="hud-val" id="hud-day">0</span></div>
+        <div class="hud-item"><span class="hud-label">Committed</span><span class="hud-val" id="hud-spent">$0</span></div>
+        <div class="hud-item"><span class="hud-label">Accrued Cost</span><span class="hud-val" style="color:#fbbf24" id="hud-accrued">$0</span></div>
+        <div class="hud-item"><span class="hud-label">Penalty</span><span class="hud-val" style="color:#f87171" id="hud-penalty">$0</span></div>
+        <div class="hud-item"><span class="hud-label">Runway</span><span class="hud-val" id="hud-runway" style="color:var(--active)">$0</span></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:15px;">
+        <input type="range" id="width-slider" min="450" max="850" value="520" style="width:70px">
+        <div style="display:flex; gap:5px;">
+            <button class="btn btn-run" id="btn-play" onclick="toggleSim()">Start</button>
+            <button class="btn" style="background:#3b82f6; color:white" onclick="resetSim()">Restart</button>
+            <button class="btn" style="background:#64748b; color:white;" onclick="location.reload()">Hard Reset</button>
+        </div>
+    </div>
+</header>
+
+<main>
+    <section class="panel">
+        <div class="panel-header">PROJECT CONFIGURATION</div>
+        <div class="panel-content">
+            <div class="config-box">
+                <div><label>Budget</label><input type="number" id="in-budget" value="45000"></div>
+                <div><label>Deadline</label><input type="number" id="in-deadline" value="25"></div>
+                <div><label>Penalty</label><input type="number" id="in-penalty" value="1200"></div>
+            </div>
+            <table id="act-table">
+                <thead><tr><th>ID</th><th>Dur</th><th>Pred</th><th>Min</th><th>Norm$</th><th>Cr$</th><th>Act</th></tr></thead>
+                <tbody id="act-body"></tbody>
+            </table>
+            <button class="btn btn-gen" onclick="generateNetwork()">Generate & Auto-Layout</button>
+            <div class="matrix-enclosure"><div id="matrix-root"></div></div>
+        </div>
+    </section>
+
+    <section id="network-container">
+        <svg id="network-svg" onmousemove="onDrag(event)" onmouseup="endDrag()" onmouseleave="endDrag()">
+            <defs>
+                <marker id="arr-blue" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--primary)" />
+                </marker>
+                <marker id="arr-crit" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--critical)" />
+                </marker>
+            </defs>
+            <g id="edges-layer"></g>
+            <g id="nodes-layer"></g>
+        </svg>
+    </section>
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
