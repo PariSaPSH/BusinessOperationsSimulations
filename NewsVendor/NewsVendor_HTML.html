@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Newsvendor Simulation - Refined</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<h1>Newsvendor Simulation</h1>
+
+<div id="setupArea">
+    <div class="econ-inputs">
+        <div class="econ-group">
+            <span class="econ-label">Price (p)</span>
+            <input type="number" id="inputP" class="econ-input" value="2.50" step="0.1">
+        </div>
+        <div class="econ-group">
+            <span class="econ-label">Cost (c)</span>
+            <input type="number" id="inputC" class="econ-input" value="2.00" step="0.1">
+        </div>
+        <div class="econ-group">
+            <span class="econ-label">Salvage (s)</span>
+            <input type="number" id="inputS" class="econ-input" value="1.00" step="0.1">
+        </div>
+        <div class="econ-group">
+            <span class="econ-label">Rounds</span>
+            <input type="number" id="totalDaysInput" class="econ-input" value="5">
+        </div>
+    </div>
+    <button class="start-btn" onclick="startGame()">Set Variables & Start Game</button>
+</div>
+
+<div id="gameArea">
+    <div class="status-bar">
+        Day: <span id="dayDisplay">1</span> / <span id="totalDaysDisplay">5</span>
+        &nbsp;|&nbsp;
+        Total Profit: $<span id="cumProfitDisplay">0.00</span>
+    </div>
+
+    <div class="sun-container">
+        <div id="playBtn" class="sun" onclick="playRound()">☀️</div>
+        <div style="font-size: 14px; color: #666; font-weight: bold;">CLICK SUN TO SIMULATE DAY</div>
+    </div>
+
+    <div class="columns">
+        <div class="column-card col-decision">
+            <div class="icon">📰</div>
+            <div class="label">Order Quantity (Q)</div>
+            <input id="Q" type="number" class="inputbox" placeholder="Qty?">
+
+            <div class="label" style="margin-top: 30px;">Daily Profit</div>
+            <div id="profitBox" class="profitbox">-</div>
+        </div>
+
+        <div class="column-card col-success">
+            <div class="icon">🔮 🧑‍💼</div>
+            <div class="label">Realized Demand</div>
+            <div id="demandBox" class="box">-</div>
+
+            <div class="label">Actual Sales 📰🧑‍💼</div>
+            <div id="salesBox" class="box">-</div>
+        </div>
+
+        <div class="column-card col-error">
+            <div class="icon">⚖️ 📰 🗑️</div>
+            <div class="label">Leftover (Waste)</div>
+            <div id="leftoverBox" class="box">-</div>
+
+            <div class="label">Lost Sales</div>
+            <div id="lostBox" class="box">-</div>
+        </div>
+    </div>
+
+    <div class="bottom-section">
+        <div class="economics-panel">
+            <div style="text-align:center; font-weight:bold; margin-bottom:15px; font-size: 20px; color:#2c3e50;">Economic Summary</div>
+            <div class="eco-row">
+                <span>Underage Cost (Cu):</span>
+                <span><span class="blue-face">☹</span></span>
+                <span style="color:#d32f2f; font-weight:bold;">$ <span id="dispCu">0.00</span></span>
+            </div>
+            <div class="eco-row">
+                <span>Overage Cost (Co):</span>
+                <span><span class="purple-trash">🗑</span></span>
+                <span style="color:#9c27b0; font-weight:bold;">$ <span id="dispCo">0.00</span></span>
+            </div>
+            <div class="cr-box">
+                CR = <span id="dispCR">0.00</span>
+            </div>
+            <div style="font-size: 13px; color: #777; text-align: center; margin-top:5px;">Optimal Service Level Target</div>
+        </div>
+        <img src="Demand.png" alt="Demand Graph" class="demand-chart">
+    </div>
+</div>
+
+<div id="historySection">
+    <h2>Simulation History</h2>
+    <table id="historyTable">
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th>Order (Q)</th>
+                <th>Demand</th>
+                <th>Daily Profit</th>
+                <th>Cum. Profit</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
+<div id="analyzerSection">
+    <h2>⚡ Long-Run Expected Profit</h2>
+    <p>Test any Q to see its theoretical performance over time.</p>
+    <div style="margin-bottom: 15px;">
+        <input id="analyzeQ" type="number" class="inputbox" style="width: 120px; color: black; background-color: white; border: 2px solid #2196F3;" placeholder="Test Q">
+        <button class="analyze-btn" onclick="calculateExpectedValue()">Calculate EV</button>
+    </div>
+    <div id="analysisResult" style="font-size: 22px; color: #0d47a1; font-weight: bold;"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
