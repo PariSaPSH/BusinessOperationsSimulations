@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supply Chain Shipping Game - What-If Edition</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: #1e293b;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        header { text-align: center; padding: 30px; }
+        header h1 { margin: 0; font-size: 2.2rem; color: #1e293b; }
+        header p { margin: 10px 0 0; font-size: 1.2rem; color: #64748b; }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 25px;
+            width: 95%;
+            max-width: 1500px;
+            padding-bottom: 20px;
+        }
+
+        /* --- Network Map Area --- */
+        .network-container {
+            position: relative;
+            background: var(--card);
+            border-radius: 25px;
+            height: 750px;
+            box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.1);
+            border: 1px solid var(--border);
+        }
+
+        .lane-svg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+        }
+        .lane-path {
+            fill: none;
+            stroke: #cbd5e1;
+            stroke-width: 4;
+            stroke-dasharray: 12, 6;
+            transition: all 0.4s ease;
+        }
+        .lane-path.active { stroke: var(--primary); stroke-width: 6; stroke-dasharray: none; }
+        .lane-path.error { stroke: var(--danger); stroke-width: 8; }
+
+        .node {
+            position: absolute;
+            width: 200px;
+            text-align: center;
+            z-index: 10;
+        }
+        .node-icon { font-size: 4rem; margin-bottom: 10px; filter: drop-shadow(0 6px 8px rgba(0,0,0,0.1)); }
+        .node-label { font-weight: 800; font-size: 1.3rem; margin: 0; }
+        .node-sub { font-size: 1rem; color: #64748b; font-weight: 600; line-height: 1.4; }
+
+        /* Arc Inputs */
+        .arc-input-box {
+            position: absolute;
+            background: white;
+            padding: 12px;
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+            border: 3px solid var(--border);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: translate(-50%, -50%);
+            transition: all 0.2s;
+        }
+        .arc-input-box:focus-within { border-color: var(--primary); transform: translate(-50%, -52%) scale(1.1); }
+        .arc-input-box label { font-size: 0.85rem; font-weight: 800; color: #94a3b8; text-transform: uppercase; margin-bottom: 5px; }
+        
+        .arc-field {
+            width: 100px;
+            border: none;
+            font-size: 1.6rem;
+            font-weight: 900;
+            text-align: center;
+            color: var(--primary);
+            outline: none;
+            background: transparent;
+        }
+        .arc-field::-webkit-inner-spin-button { display: none; }
+
+        .info-tag { font-size: 0.85rem; font-weight: 700; color: #64748b; margin-top: 2px; }
+        .cost-tag { color: var(--success); }
+        .labor-tag { color: #0ea5e9; }
+
+        /* --- Scoreboard & UI --- */
+        .panel { background: var(--card); padding: 30px; border-radius: 25px; border: 1px solid var(--border); }
+        .status-badge {
+            text-align: center;
+            padding: 15px;
+            border-radius: 12px;
+            font-weight: 900;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 1.2rem;
+        }
+        .valid { background: #dcfce7; color: #166534; border: 2px solid #bbf7d0; }
+        .invalid { background: #fee2e2; color: #991b1b; border: 2px solid #fecaca; }
+
+        .metric-card { background: #f8fafc; padding: 22px; border-radius: 15px; border-left: 8px solid var(--primary); margin-bottom: 25px; }
+        .metric-val { font-size: 3rem; font-weight: 900; color: var(--primary); margin-top: 8px; }
+
+        .con-group h3 { font-size: 0.95rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 15px; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px; }
+        .con-item { display: flex; justify-content: space-between; font-size: 1.1rem; font-weight: 600; margin-bottom: 12px; }
+        .pass { color: var(--success); }
+        .fail { color: var(--danger); }
+
+        .btn {
+            padding: 15px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+            width: 100%;
+            margin-bottom: 12px;
+        }
+        .btn-record { background: var(--success); color: white; }
+        .btn-solve { background: var(--primary); color: white; }
+        .btn-reset { background: white; border: 2px solid var(--border); color: #64748b; }
+        .btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+
+        /* --- What-If Section --- */
+        .what-if-panel {
+            grid-column: span 2;
+            background: #1e293b;
+            color: white;
+            padding: 30px;
+            border-radius: 25px;
+            width: 95%;
+            max-width: 1500px;
+            margin: 0 auto 50px auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            box-sizing: border-box;
+        }
+        .what-if-panel h2 { grid-column: span 3; color: var(--success); text-transform: uppercase; margin: 0 0 10px 0; }
+        .slider-group { background: #334155; padding: 15px; border-radius: 15px; }
+        .slider-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 700; font-size: 0.9rem; }
+        input[type="range"] { width: 100%; cursor: pointer; }
+
+        .history-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-top: 25px; }
+        .history-table th { text-align: left; color: #94a3b8; padding: 10px 5px; border-bottom: 2px solid #f1f5f9; text-transform: uppercase; }
+        .history-table td { padding: 12px 5px; border-bottom: 1px solid #f8fafc; font-weight: 600; }
+
+        #PhoenixPlant { left: 40px; top: 300px; }
+        #AtlantaPlant { right: 40px; top: 300px; }
+        #ChicagoMarket { left: 50%; top: 100px; transform: translateX(-50%); }
+        #HoustonMarket { left: 50%; top: 520px; transform: translateX(-50%); }
+        #box-x11 { left: 30%; top: 220px; }
+        #box-x12 { left: 30%; top: 500px; }
+        #box-x21 { left: 70%; top: 220px; }
+        #box-x22 { left: 70%; top: 500px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Supply Chain Shipping Game</h1>
+    <p>Optimize shipping flows from Phoenix and Atlanta to Chicago and Houston.</p>
+</header>
+
+<div class="main-layout">
+    <div class="network-container">
+        <svg class="lane-svg">
+            <path id="path-x11" class="lane-path" d="M 120 350 Q 300 220 500 190" />
+            <path id="path-x12" class="lane-path" d="M 120 350 Q 300 520 500 550" />
+            <path id="path-x21" class="lane-path" d="M 880 350 Q 700 220 500 190" />
+            <path id="path-x22" class="lane-path" d="M 880 350 Q 700 520 500 550" />
+        </svg>
+
+        <div id="PhoenixPlant" class="node">
+            <div class="node-icon">🏭</div>
+            <p class="node-label">Plant A, Phoenix</p>
+            <p class="node-sub">Cap: <span id="lbl-sa">180</span> | Labor: <span id="lbl-la">360</span>h</p>
+        </div>
+        <div id="AtlantaPlant" class="node">
+            <div class="node-icon">🏭</div>
+            <p class="node-label">Plant B, Atlanta</p>
+            <p class="node-sub">Cap: <span id="lbl-sb">200</span> | Labor: <span id="lbl-lb">300</span>h</p>
+        </div>
+        <div id="ChicagoMarket" class="node">
+            <div class="node-icon">🏙️</div>
+            <p class="node-label">Chicago</p>
+            <p class="node-sub">Demand: <span id="lbl-dla">200</span></p>
+        </div>
+        <div id="HoustonMarket" class="node">
+            <div class="node-icon">🏢</div>
+            <p class="node-label">Houston</p>
+            <p class="node-sub">Demand: <span id="lbl-dch">100</span></p>
+        </div>
+
+        <div id="box-x11" class="arc-input-box">
+            <label>Phoenix → Chicago</label>
+            <input type="number" id="x11" class="arc-field" value="0" min="0" oninput="update()">
+            <div class="info-tag cost-tag">$4/u</div>
+			<div class="info-tag labor-tag">2h/u</div>
+        </div>
+        <div id="box-x12" class="arc-input-box">
+            <label>Phoenix → Houston</label>
+            <input type="number" id="x12" class="arc-field" value="0" min="0" oninput="update()">
+            <div class="info-tag cost-tag">$7/u</div>
+			<div class="info-tag labor-tag">1h/u</div>
+        </div>
+        <div id="box-x21" class="arc-input-box">
+            <label>Atlanta → Chicago</label>
+            <input type="number" id="x21" class="arc-field" value="0" min="0" oninput="update()">
+            <div class="info-tag cost-tag">$6/u</div>
+			<div class="info-tag labor-tag">1h/u</div>
+        </div>
+        <div id="box-x22" class="arc-input-box">
+            <label>Atlanta → Houston</label>
+            <input type="number" id="x22" class="arc-field" value="0" min="0" oninput="update()">
+            <div class="info-tag cost-tag">$3/u</div>
+			<div class="info-tag labor-tag">3h/u</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div id="status" class="status-badge invalid">Invalid Plan</div>
+        <div class="metric-card">
+            <div style="font-size: 1rem; font-weight: 800; color: #64748b; text-transform: uppercase;">Total Cost (Z)</div>
+            <div class="metric-val" id="cost-display">$0</div>
+        </div>
+        <div class="con-group">
+            <h3>Supply Status</h3>
+            <div class="con-item"><span>Phoenix Supply</span><span id="c-sa">0</span></div>
+            <div class="con-item"><span>Atlanta Supply</span><span id="c-sb">0</span></div>
+			
+			<h3>Labor Status</h3>
+            <div class="con-item"><span>Phoenix Labor</span><span id="c-la">0</span></div>
+            <div class="con-item"><span>Atlanta Labor</span><span id="c-lb">0</span></div>
+			
+			<h3 style="margin-top:20px">Market Satisfaction</h3>
+            <div class="con-item"><span>Chicago Demand</span><span id="c-dla">0</span></div>
+            <div class="con-item"><span>Houston Demand</span><span id="c-dch">0</span></div>
+        </div>
+        <button class="btn btn-solve" onclick="solveOptimal()">Solve Optimal</button>
+        <button class="btn btn-record" onclick="record()">Record Trial</button>
+        <button class="btn btn-reset" onclick="reset()">Reset All</button>
+        <table class="history-table">
+            <thead><tr><th>Flows</th><th>Cost</th><th>Stat</th></tr></thead>
+            <tbody id="history-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<div class="what-if-panel">
+    <h2>What-If Scenario Manager (±50%)</h2>
+    
+    <div class="slider-group">
+        <div class="slider-header"><span>Chicago Demand</span><span id="pct-dla">0%</span></div>
+        <input type="range" id="m-dla" min="-50" max="50" value="0" oninput="updateScenarios()">
+    </div>
+    <div class="slider-group">
+        <div class="slider-header"><span>Houston Demand</span><span id="pct-dch">0%</span></div>
+        <input type="range" id="m-dch" min="-50" max="50" value="0" oninput="updateScenarios()">
+    </div>
+    <div class="slider-group">
+        <div class="slider-header"><span>Phoenix Capacity</span><span id="pct-sa">0%</span></div>
+        <input type="range" id="m-sa" min="-50" max="50" value="0" oninput="updateScenarios()">
+    </div>
+    <div class="slider-group">
+        <div class="slider-header"><span>Atlanta Capacity</span><span id="pct-sb">0%</span></div>
+        <input type="range" id="m-sb" min="-50" max="50" value="0" oninput="updateScenarios()">
+    </div>
+    <div class="slider-group">
+        <div class="slider-header"><span>Phoenix Labor</span><span id="pct-la">0%</span></div>
+        <input type="range" id="m-la" min="-50" max="50" value="0" oninput="updateScenarios()">
+    </div>
+    <div class="slider-group">
+        <div class="slider-header"><span>Atlanta Labor</span><span id="pct-lb">0%</span></div>
+        <input type="range" id="m-lb" min="-50" max="50" value="0" oninput="updateScenarios()">
+    </div>
+</div>
+
+<script>
+    const BASE = { sa: 180, sb: 200, dla: 200, dch: 100, laLimit: 360, lbLimit: 300 };
+    const COSTS = { x11: 4, x12: 7, x21: 6, x22: 3 };
+    const HOURS = { x11: 2, x12: 1, x21: 1, x22: 3 };
+
+    let current = { ...BASE };
+
+    function updateScenarios() {
+        const ids = ['dla', 'dch', 'sa', 'sb', 'la', 'lb'];
+        ids.forEach(id => {
+            const pct = parseInt(document.getElementById('m-' + id).value);
+            document.getElementById('pct-' + id).innerText = (pct > 0 ? '+' : '') + pct + '%';
+            
+            // Map 'la' to 'laLimit' and 'lb' to 'lbLimit' for the state
+            const stateKey = id.length === 2 && id.startsWith('l') ? id + 'Limit' : id;
+            current[stateKey] = Math.round(BASE[stateKey] * (1 + pct / 100));
+            document.getElementById('lbl-' + id).innerText = current[stateKey];
+        });
+        update();
+    }
+
+    function update() {
+        let x11 = Math.max(0, parseInt(document.getElementById('x11').value) || 0);
+        let x12 = Math.max(0, parseInt(document.getElementById('x12').value) || 0);
+        let x21 = Math.max(0, parseInt(document.getElementById('x21').value) || 0);
+        let x22 = Math.max(0, parseInt(document.getElementById('x22').value) || 0);
+
+        // Auto-trim based on Phoenix capacity
+        if (x11 + x12 > current.sa) {
+            let total = x11 + x12;
+            x11 = Math.floor(x11 * (current.sa / total));
+            x12 = current.sa - x11;
+            document.getElementById('x11').value = x11;
+            document.getElementById('x12').value = x12;
+        }
+        // Auto-trim based on Atlanta capacity
+        if (x21 + x22 > current.sb) {
+            let total = x21 + x22;
+            x21 = Math.floor(x21 * (current.sb / total));
+            x22 = current.sb - x21;
+            document.getElementById('x21').value = x21;
+            document.getElementById('x22').value = x22;
+        }
+
+        const z = (x11*COSTS.x11) + (x12*COSTS.x12) + (x21*COSTS.x21) + (x22*COSTS.x22);
+        const lA = (x11*HOURS.x11) + (x12*HOURS.x12);
+        const lB = (x21*HOURS.x21) + (x22*HOURS.x22);
+
+        document.getElementById('cost-display').innerText = `$${z.toLocaleString()}`;
+
+        const v1 = updateCon('c-sa', x11+x12, current.sa, 'le');
+        const v2 = updateCon('c-sb', x21+x22, current.sb, 'le');
+        const v3 = updateCon('c-la', lA, current.laLimit, 'le');
+        const v4 = updateCon('c-lb', lB, current.lbLimit, 'le');
+        const v5 = updateCon('c-dla', x11+x21, current.dla, 'eq');
+        const v6 = updateCon('c-dch', x12+x22, current.dch, 'eq');
+
+        const allValid = v1 && v2 && v3 && v4 && v5 && v6;
+        document.getElementById('status').innerText = allValid ? 'Feasible Plan' : 'Invalid Plan';
+        document.getElementById('status').className = 'status-badge ' + (allValid ? 'valid' : 'invalid');
+
+        ['x11','x12','x21','x22'].forEach(id => {
+            const el = document.getElementById('path-' + id);
+            const val = eval(id);
+            el.classList.toggle('active', val > 0);
+            const laborFail = (id.startsWith('x1') && lA > current.laLimit) || (id.startsWith('x2') && lB > current.lbLimit);
+            el.classList.toggle('error', laborFail);
+        });
+    }
+
+    function updateCon(id, val, target, type) {
+        const el = document.getElementById(id);
+        const pass = type === 'le' ? val <= target : val === target;
+        el.innerText = `${val} / ${target}`;
+        el.className = pass ? 'pass' : 'fail';
+        return pass;
+    }
+
+    function solveOptimal() {
+        let best = { z: Infinity, plan: [0, 0, 0, 0] };
+        
+        // Brute force integer solver for the current scenario
+        for (let x11 = 0; x11 <= Math.min(current.sa, current.dla); x11++) {
+            for (let x12 = 0; x12 <= Math.min(current.sa - x11, current.dch); x12++) {
+                let x21 = current.dla - x11;
+                let x22 = current.dch - x12;
+
+                if (x21 >= 0 && x22 >= 0 && (x21 + x22 <= current.sb)) {
+                    let lA = (x11 * HOURS.x11) + (x12 * HOURS.x12);
+                    let lB = (x21 * HOURS.x21) + (x22 * HOURS.x22);
+
+                    if (lA <= current.laLimit && lB <= current.lbLimit) {
+                        let z = (x11 * COSTS.x11) + (x12 * COSTS.x12) + (x21 * COSTS.x21) + (x22 * COSTS.x22);
+                        if (z < best.z) best = { z, plan: [x11, x12, x21, x22] };
+                    }
+                }
+            }
+        }
+
+        if (best.z === Infinity) {
+            alert("No feasible solution exists for this scenario!");
+        } else {
+            document.getElementById('x11').value = best.plan[0];
+            document.getElementById('x12').value = best.plan[1];
+            document.getElementById('x21').value = best.plan[2];
+            document.getElementById('x22').value = best.plan[3];
+            update();
+            record();
+        }
+    }
+
+    function record() {
+        const flows = [document.getElementById('x11').value, document.getElementById('x12').value, document.getElementById('x21').value, document.getElementById('x22').value].join(',');
+        const cost = document.getElementById('cost-display').innerText;
+        const stat = document.getElementById('status').innerText.includes('Feasible') ? '✓' : '✗';
+        const row = document.getElementById('history-body').insertRow(0);
+        row.innerHTML = `<td>${flows}</td><td>${cost}</td><td style="color:${stat==='✓'?'green':'red'}">${stat}</td>`;
+    }
+
+    function reset() {
+        ['x11','x12','x21','x22'].forEach(id => document.getElementById(id).value = 0);
+        ['dla','dch','sa','sb','la','lb'].forEach(id => document.getElementById('m-' + id).value = 0);
+        updateScenarios();
+    }
+
+    window.onload = updateScenarios;
+</script>
+</body>
+</html>
